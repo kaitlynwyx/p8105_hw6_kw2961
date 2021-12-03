@@ -1,0 +1,111 @@
+---
+title: "hw6"
+author: "Kaitlyn Wang"
+date: "12/2/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(modelr)
+```
+
+## Problem 1
+```{r}
+birthweight_df = read_csv("./birthweight.csv")
+```
+
+```{r}
+birthweight_df %>% 
+  ggplot(aes(x = wtgain, y = bwt)) +
+  geom_point()
+
+birthweight_df %>% 
+  ggplot(aes(x = delwt, y = bwt)) +
+  geom_point()
+```
+
+
+```{r}
+fit1 = lm(bwt ~ wtgain + delwt, data = birthweight_df)
+
+fit1 %>% broom::tidy()
+
+birthweight_df %>% 
+  add_predictions(fit1) %>% 
+  add_residuals(fit1) %>% 
+  ggplot(aes(x = pred, y = resid)) +
+  geom_point()
+```
+Describe...
+
+```{r}
+fit2 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
+fit2 %>% broom::tidy()
+
+fit3 = lm(bwt ~ bhead * blength * babysex, data = birthweight_df)
+fit3 %>% broom::tidy()
+```
+
+```{r}
+cv_df = 
+  crossv_mc(birthweight_df, 80) %>% 
+  mutate(
+    train = map(train, as.tibble),
+    test = map(test, as.tibble)
+  )
+
+cv_df = 
+  cv_df %>% 
+    mutate(
+      fit1 = map(.x = train, ~lm(bwt ~ wtgain + delwt, data = .x)),
+      fit2 = map(.x = train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+      fit3 = map(.x = train, ~lm(bwt ~ bhead * blength * babysex, data = .x))
+    ) %>% 
+    mutate(
+      rmse_fit1 = map2_dbl(.x = fit1, .y = test, ~rmse(model = .x, data = .y)),
+      rmse_fit2 = map2_dbl(.x = fit2, .y = test, ~rmse(model = .x, data = .y)),
+      rmse_fit3 = map2_dbl(.x = fit3, .y = test, ~rmse(model = .x, data = .y))
+    )
+  
+cv_df %>% 
+  select(.id, starts_with("rmse")) %>% 
+  pivot_longer(
+    rmse_fit1:rmse_fit3,
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_"
+  ) %>% 
+  ggplot(aes(x = model, y = rmse)) +
+  geom_boxplot()
+```
+
+## Problem 2
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
