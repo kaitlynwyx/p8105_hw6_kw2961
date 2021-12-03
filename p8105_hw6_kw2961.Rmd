@@ -51,8 +51,8 @@ fit3 %>% broom::tidy()
 cv_df = 
   crossv_mc(birthweight_df, 80) %>% 
   mutate(
-    train = map(train, as.tibble),
-    test = map(test, as.tibble)
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)
   )
 
 cv_df = 
@@ -97,9 +97,60 @@ weather_df =
 ```
 
 ```{r}
-
+weather_bs = 
+  weather_df %>% 
+  select(tmax, tmin) %>% 
+  bootstrap(5000) %>% 
+  mutate(
+    models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
+    results_rsqr = map(models, broom::glance),
+    results_beta = map(models, broom::tidy))
 ```
 
+```{r}
+rsqr = 
+  weather_bs %>% 
+    select(results_rsqr, .id) %>% 
+    unnest(results_rsqr) 
+
+ggplot(rsqr, aes(r.squared)) + 
+    geom_density()
+
+quantile(rsqr$r.squared, c(.025, 0.975))
+```
+describe..
+
+```{r}
+beta0 = 
+  weather_bs %>% 
+  select(results_beta, .id) %>% 
+  unnest(results_beta) %>% 
+  filter(term == "(Intercept)") %>% 
+  select(estimate, .id) %>% 
+  rename(beta0 = estimate)
+  
+
+beta1 = 
+  weather_bs %>% 
+  select(results_beta, .id) %>% 
+  unnest(results_beta) %>% 
+  filter(term == "tmin") %>% 
+  select(estimate, .id) %>% 
+  rename(beta1 = estimate)
+
+log = 
+  inner_join(beta0, beta1, by = ".id") %>% 
+  relocate(.id) %>% 
+  mutate(
+    log = log(beta0 * beta1)
+  )
+
+ggplot(log, aes(log)) + 
+  geom_density()
+
+quantile(log$log, c(.025, 0.975))
+```
+describe..
 
 
 
